@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARV Deal Analyzer — Lot & Key</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black: #f7f8fb;
+      --dark: #f0f2f8;
+      --card: #ffffff;
+      --teal: #00D4B4;
+      --teal-dark: #00A88E;
+      --white: #111820;
+      --muted: #6B7E92;
+      --border: rgba(0,0,0,0.06);
+      --green: #4ab478;
+      --red: #dc5050;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--black); color: var(--white); overflow-x: hidden; }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.25;
+    }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 4rem; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.1em; color: var(--white); }
+    .logo span { color: var(--teal); }
+
+    .hero { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; padding: 8rem 4rem 4rem; position: relative; overflow: hidden; }
+    .hero-glow { position: absolute; top: 20%; right: -10%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(0,212,180,0.12) 0%, transparent 70%); pointer-events: none; }
+    .hero-glow-2 { position: absolute; bottom: 10%; left: -5%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(0,212,180,0.06) 0%, transparent 70%); pointer-events: none; }
+    .hero-tag { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(0,212,180,0.1); border: 1px solid rgba(0,212,180,0.3); color: var(--teal); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.4rem 1rem; border-radius: 100px; margin-bottom: 2rem; width: fit-content; }
+    .hero-tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.4); } }
+    .hero h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3.5rem, 8vw, 6rem); line-height: 0.98; letter-spacing: 0.02em; max-width: 780px; margin-bottom: 1.5rem; position: relative; z-index: 1; }
+    .hero h1 span { color: var(--teal); }
+    .hero-sub { font-size: 1.1rem; color: var(--muted); max-width: 560px; line-height: 1.7; margin-bottom: 0; font-weight: 300; position: relative; z-index: 1; }
+
+    .calc-section { padding: 4rem 4rem 6rem; background: var(--dark); position: relative; z-index: 1; }
+    .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
+    .section-overline { font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); font-weight: 700; margin-bottom: 0.5rem; }
+    .section-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 3.2rem; letter-spacing: 0.08em; line-height: 1; }
+
+    .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+    .tab-btn { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 1.25rem; color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500; letter-spacing: 0.03em; transition: all 0.2s; }
+    .tab-btn:hover { color: var(--white); border-color: rgba(0,0,0,0.12); }
+    .tab-btn.active { background: rgba(0,212,180,0.12); border-color: rgba(0,212,180,0.35); color: var(--teal); }
+
+    .calc-wrap { max-width: 980px; margin: 0 auto; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+    .calc-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 2rem; position: relative; overflow: hidden; }
+    .calc-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--teal); opacity: 0; transition: opacity 0.3s; }
+    .calc-card:focus-within::before { opacity: 1; }
+
+    .section-title { font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); font-weight: 700; margin-bottom: 1rem; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .field input { width: 100%; background: rgba(0,0,0,0.02); border: 1px solid var(--border); border-radius: 4px; padding: 0.85rem 1rem; color: var(--white); font-size: 0.9rem; font-family: 'DM Sans', sans-serif; transition: border-color 0.2s; }
+    .field input:focus { outline: none; border-color: var(--teal); }
+    .field .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; text-align: center; transition: border-color 0.3s; }
+    .stat-box.pass { background: rgba(74,180,120,0.08); border-color: rgba(74,180,120,0.3); }
+    .stat-box.fail { background: rgba(220,80,80,0.08); border-color: rgba(220,80,80,0.3); }
+    .stat-box .label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .stat-box .value { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.04em; font-weight: 400; color: var(--teal); }
+    .stat-box .sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; line-height: 1.4; }
+
+    .banner { border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; border: 1px solid transparent; }
+    .banner.pass { background: rgba(74,180,120,0.1); border-color: rgba(74,180,120,0.35); }
+    .banner.fail { background: rgba(220,80,80,0.1); border-color: rgba(220,80,80,0.35); }
+    .banner .icon { font-size: 1.5rem; }
+    .banner .title { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 0.05em; }
+    .banner.pass .title { color: var(--green); }
+    .banner.fail .title { color: var(--red); }
+    .banner .sub { font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .metrics { background: rgba(0,0,0,0.015); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+    .metrics .row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .metrics .row:last-child { border-bottom: none; }
+    .metrics .row .val { color: var(--teal); font-weight: 500; }
+    .metrics .row .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+
+    .flag-card { background: rgba(0,0,0,0.015); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; display: flex; gap: 0.75rem; align-items: flex-start; }
+    .flag-card .label { font-weight: 600; font-size: 0.9rem; }
+    .flag-card .desc { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.5; }
+
+    footer { background: var(--dark); border-top: 1px solid var(--border); padding: 2rem 4rem; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1; }
+    footer .logo { font-size: 1.4rem; }
+    footer .logo span { color: var(--teal); }
+    footer p { color: var(--muted); font-size: 0.8rem; }
+
+    @media (max-width: 1024px) {
+      nav { padding: 1rem 2rem; }
+      .hero { padding: 6rem 2rem 3rem; min-height: 50vh; }
+      .calc-section { padding: 3rem 2rem 4rem; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .hero h1 { font-size: clamp(2.5rem, 10vw, 3.2rem); }
+      footer { flex-direction: column; gap: 1rem; text-align: center; padding: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">LOT <span>&</span> KEY</div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-glow-2"></div>
+    <div class="hero-tag">Tools</div>
+    <h1>ARV <span>DEAL ANALYZER</span></h1>
+    <p class="hero-sub">Analyze mobile home deals: all-in cost, profit, ROI, 70% rule, and seller finance scenarios.</p>
+  </section>
+
+  <section class="calc-section">
+    <div class="section-header">
+      <div>
+        <div class="section-overline">Calculator</div>
+        <h2>DEAL ANALYSIS</h2>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button type="button" class="tab-btn active" data-tab="deal">Deal Analysis</button>
+      <button type="button" class="tab-btn" data-tab="sf">Seller Finance</button>
+      <button type="button" class="tab-btn" data-tab="props">Property Info</button>
+    </div>
+
+    <div class="calc-wrap">
+      <!-- DEAL TAB -->
+      <div id="panel-deal" class="tab-panel active">
+        <div class="grid-2">
+          <div class="calc-card">
+            <div class="section-title">Deal Inputs</div>
+            <div class="field">
+              <label>After Repair Value (ARV) $</label>
+              <input type="number" id="arv" value="55000" min="0" step="1000">
+              <div class="hint">Conservative ARV for pre-HUD land-lease home</div>
+            </div>
+            <div class="field">
+              <label>Purchase Price $</label>
+              <input type="number" id="purchase" value="3000" min="0" step="500">
+              <div class="hint">Target: $1,000 – $5,000</div>
+            </div>
+            <div class="field">
+              <label>Rehab Cost $</label>
+              <input type="number" id="rehab" value="20000" min="0" step="500">
+              <div class="hint">Get contractor estimate first</div>
+            </div>
+            <div class="section-title" style="margin-top:1.5rem">Carrying Costs</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+              <div class="field">
+                <label>Lot Rent $/mo</label>
+                <input type="number" id="lotRentAmt" value="500" min="0" step="50">
+              </div>
+              <div class="field">
+                <label>Months</label>
+                <input type="number" id="lotRentMonths" value="3" min="0" step="1">
+              </div>
+            </div>
+            <div class="field">
+              <label>Closing / Transfer / HCD Fees $</label>
+              <input type="number" id="closing" value="1500" min="0" step="100">
+            </div>
+          </div>
+
+          <div class="calc-card">
+            <div id="roi-banner" class="banner fail">
+              <span class="icon">❌</span>
+              <div>
+                <div class="title">100% ROI TARGET NOT MET</div>
+                <div class="sub" id="roi-banner-sub">—</div>
+              </div>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-box"><div class="label">Total All-In</div><div class="value" id="out-totalAllIn">$0</div><div class="sub">Purchase + Rehab + Carrying + Closing</div></div>
+              <div class="stat-box"><div class="label">ARV</div><div class="value" id="out-arv">$0</div></div>
+              <div class="stat-box" id="box-profit"><div class="label">Net Profit</div><div class="value" id="out-profit">$0</div></div>
+              <div class="stat-box" id="box-roi"><div class="label">ROI</div><div class="value" id="out-roi">—</div><div class="sub">Target: ≥ 100%</div></div>
+            </div>
+            <div class="metrics">
+              <div class="row"><div><span>70% Rule Max Offer</span><div class="hint">Max you should pay for this ARV + rehab</div></div><span class="val" id="out-maxOffer70">$0</span></div>
+              <div class="row"><div><span>Break-Even ARV (100% ROI)</span><div class="hint">ARV needed to double your money</div></div><span class="val" id="out-breakEvenArv">$0</span></div>
+              <div class="row"><div><span>Carrying Cost Total</span><div class="hint" id="out-carrying-hint">—</div></div><span class="val" id="out-carrying">$0</span></div>
+              <div class="row"><div><span>Rehab % of ARV</span></div><span class="val" id="out-rehabPct">—</span></div>
+              <div class="row"><div><span>Pre-HUD Warning</span></div><span class="val" id="out-preHUD">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SELLER FINANCE TAB -->
+      <div id="panel-sf" class="tab-panel">
+        <div class="grid-2">
+          <div class="calc-card">
+            <div class="section-title">Seller Finance Terms</div>
+            <div class="field"><label>Sale Price $</label><input type="number" id="sfSalePrice" value="57000" min="0" step="1000"><div class="hint">What you sell the home for</div></div>
+            <div class="field"><label>Down Payment $</label><input type="number" id="sfDown" value="7000" min="0" step="500"><div class="hint">Collect upfront — reduces your risk</div></div>
+            <div class="field"><label>Interest Rate %</label><input type="number" id="sfRate" value="10" min="0" step="0.5"><div class="hint">Typical range: 8–12% for MH seller finance</div></div>
+            <div class="field"><label>Loan Term (Years)</label><input type="number" id="sfTermYears" value="7" min="1" step="1"><div class="hint">5–10 years typical for MH</div></div>
+          </div>
+
+          <div class="calc-card">
+            <div class="stat-grid">
+              <div class="stat-box"><div class="label">Loan Amount</div><div class="value" id="out-sfLoanAmt">$0</div></div>
+              <div class="stat-box"><div class="label">Monthly Payment</div><div class="value" id="out-sfPayment">$0</div><div class="sub">Buyer pays you this</div></div>
+              <div class="stat-box"><div class="label">Total Collected</div><div class="value" id="out-sfTotalCollected">$0</div><div class="sub" id="out-sfTermSub">—</div></div>
+              <div class="stat-box"><div class="label">Total Interest Earned</div><div class="value" id="out-sfTotalInterest">$0</div></div>
+              <div class="stat-box" id="box-sfNet"><div class="label">Net Profit (SF)</div><div class="value" id="out-sfNetProfit">$0</div><div class="sub">vs. all-in cost from Deal tab</div></div>
+              <div class="stat-box" id="box-sfRoi"><div class="label">ROI (SF)</div><div class="value" id="out-sfRoi">—</div><div class="sub">Target: ≥ 100%</div></div>
+            </div>
+            <div class="metrics" style="margin-top:1rem">
+              <div class="row"><div>Cash Sale Profit</div><span class="val" id="out-cashProfit">$0</span></div>
+              <div class="row"><div>Seller Finance Profit</div><span class="val" id="out-sfNetProfit2">$0</span></div>
+              <div class="row"><div>Extra Profit via SF</div><span class="val" id="out-extraSf">$0</span></div>
+              <div class="row"><div>Monthly Income</div><span class="val" id="out-sfPayment2">$0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROPERTY INFO TAB -->
+      <div id="panel-props" class="tab-panel">
+        <div class="grid-2">
+          <div class="calc-card">
+            <div class="section-title">Property Details</div>
+            <div class="field"><label>Address / Space</label><input type="text" id="propAddress" value="14890 Perris Blvd, Space 13"></div>
+            <div class="field"><label>Park Name</label><input type="text" id="parkName" value="Sky Trails Mobile Village"></div>
+            <div class="field"><label>Year Built</label><input type="number" id="yearBuilt" value="1970" min="1900"><div class="hint">Pre-1976 = Pre-HUD = cash buyers only</div></div>
+            <div class="field"><label>Bed / Bath</label><input type="text" id="bedBath" value="2bd / 2ba"></div>
+          </div>
+          <div class="calc-card">
+            <div class="section-title">Property Flags</div>
+            <div id="flag-cards"></div>
+            <div class="section-title" style="margin-top:1.5rem">Exit Strategy Guide</div>
+            <div class="metrics">
+              <div class="row"><div><strong style="color:var(--green)">Seller Finance</strong></div><div>Best option — maximize profit, open buyer pool</div></div>
+              <div class="row"><div><strong style="color:var(--teal)">Cash Buyer / Investor</strong></div><div>MHVillage, Facebook Marketplace, Craigslist</div></div>
+              <div class="row"><div><strong style="color:var(--muted)">Wholesale / Assign</strong></div><div>Fast exit — $3K–$5K assignment fee, no rehab</div></div>
+              <div class="row"><div><strong style="color:var(--muted)">Rent Out</strong></div><div id="rent-out-desc">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="logo">LOT <span>&</span> KEY</div>
+    <p>© 2026 Lot &amp; Key Mobile Home Investments · Southern California &amp; Arizona</p>
+  </footer>
+
+  <script>
+    const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0);
+    const fmtPct = (n) => (n != null && isFinite(n)) ? (n * 100).toFixed(1) + '%' : '—';
+    const num = (v) => parseFloat(v) || 0;
+
+    const inputs = [
+      'arv','purchase','rehab','lotRentMonths','lotRentAmt','closing',
+      'propAddress','yearBuilt','bedBath','parkName',
+      'sfSalePrice','sfDown','sfRate','sfTermYears'
+    ];
+
+    function getState() {
+      const el = (id) => document.getElementById(id);
+      return {
+        arv: num(el('arv')?.value),
+        purchase: num(el('purchase')?.value),
+        rehab: num(el('rehab')?.value),
+        lotRentMonths: num(el('lotRentMonths')?.value),
+        lotRentAmt: num(el('lotRentAmt')?.value),
+        closing: num(el('closing')?.value),
+        propAddress: el('propAddress')?.value || '',
+        yearBuilt: num(el('yearBuilt')?.value),
+        bedBath: el('bedBath')?.value || '',
+        parkName: el('parkName')?.value || '',
+        sfSalePrice: num(el('sfSalePrice')?.value),
+        sfDown: num(el('sfDown')?.value),
+        sfRate: num(el('sfRate')?.value),
+        sfTermYears: num(el('sfTermYears')?.value),
+      };
+    }
+
+    function updateDeal(s) {
+      const carrying = s.lotRentMonths * s.lotRentAmt;
+      const totalAllIn = s.purchase + s.rehab + carrying + s.closing;
+      const profit = s.arv - totalAllIn;
+      const roi = totalAllIn > 0 ? profit / totalAllIn : 0;
+      const maxOffer70 = s.arv * 0.7 - s.rehab;
+      const breakEvenArv = totalAllIn * 2;
+      const hits100 = roi >= 1.0;
+      const preHUD = s.yearBuilt < 1976;
+
+      const banner = document.getElementById('roi-banner');
+      const bannerSub = document.getElementById('roi-banner-sub');
+      if (banner) {
+        banner.className = 'banner ' + (hits100 ? 'pass' : 'fail');
+        banner.querySelector('.icon').textContent = hits100 ? '✅' : '❌';
+        banner.querySelector('.title').textContent = hits100 ? '100% ROI TARGET MET' : '100% ROI TARGET NOT MET';
+        if (bannerSub) bannerSub.textContent = hits100 ? `Deal clears the threshold by ${fmtPct(roi - 1)}` : `Need ARV of ${fmt(breakEvenArv)} or reduce all-in cost to ${fmt(s.arv / 2)}`;
+      }
+      const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+      set('out-totalAllIn', fmt(totalAllIn));
+      set('out-arv', fmt(s.arv));
+      set('out-profit', fmt(profit));
+      set('out-roi', fmtPct(roi));
+      set('out-maxOffer70', fmt(maxOffer70));
+      set('out-breakEvenArv', fmt(breakEvenArv));
+      set('out-carrying', fmt(carrying));
+      set('out-carrying-hint', `${s.lotRentMonths} months × ${fmt(s.lotRentAmt)}/mo`);
+      set('out-rehabPct', s.arv > 0 ? fmtPct(s.rehab / s.arv) : '—');
+      set('out-preHUD', preHUD ? '⚠️ Pre-1976 — Cash buyers only' : '✅ Post-HUD — Financing possible');
+
+      const boxProfit = document.getElementById('box-profit');
+      const boxRoi = document.getElementById('box-roi');
+      if (boxProfit) { boxProfit.className = 'stat-box ' + (profit >= 0 ? 'pass' : 'fail'); boxProfit.querySelector('.value').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)'; }
+      if (boxRoi) { boxRoi.className = 'stat-box ' + (hits100 ? 'pass' : 'fail'); boxRoi.querySelector('.value').style.color = hits100 ? 'var(--green)' : 'var(--red)'; }
+
+      return { totalAllIn, profit, roi };
+    }
+
+    function updateSF(s, deal) {
+      const sfLoanAmt = s.sfSalePrice - s.sfDown;
+      const r = s.sfRate / 100 / 12;
+      const n = s.sfTermYears * 12;
+      const sfPayment = (sfLoanAmt > 0 && r > 0) ? sfLoanAmt * r / (1 - Math.pow(1 + r, -n)) : 0;
+      const sfTotalCollected = sfPayment * n + s.sfDown;
+      const sfTotalInterest = sfTotalCollected - s.sfSalePrice;
+      const sfNetProfit = sfTotalCollected - deal.totalAllIn;
+      const sfRoi = deal.totalAllIn > 0 ? sfNetProfit / deal.totalAllIn : 0;
+
+      const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+      set('out-sfLoanAmt', fmt(sfLoanAmt));
+      set('out-sfPayment', fmt(sfPayment));
+      set('out-sfTotalCollected', fmt(sfTotalCollected));
+      set('out-sfTotalInterest', fmt(sfTotalInterest));
+      set('out-sfNetProfit', fmt(sfNetProfit));
+      set('out-sfRoi', fmtPct(sfRoi));
+      set('out-sfTermSub', `Over ${s.sfTermYears} years`);
+      set('out-cashProfit', fmt(deal.profit));
+      set('out-sfNetProfit2', fmt(sfNetProfit));
+      set('out-extraSf', fmt(sfNetProfit - deal.profit));
+      set('out-sfPayment2', fmt(sfPayment));
+
+      const boxSfNet = document.getElementById('box-sfNet');
+      const boxSfRoi = document.getElementById('box-sfRoi');
+      if (boxSfNet) { boxSfNet.className = 'stat-box ' + (sfNetProfit >= 0 ? 'pass' : 'fail'); boxSfNet.querySelector('.value').style.color = sfNetProfit >= 0 ? 'var(--green)' : 'var(--red)'; }
+      if (boxSfRoi) { boxSfRoi.className = 'stat-box ' + (sfRoi >= 1 ? 'pass' : 'fail'); boxSfRoi.querySelector('.value').style.color = sfRoi >= 1 ? 'var(--green)' : 'var(--red)'; }
+    }
+
+    function updateProps(s, deal) {
+      const preHUD = s.yearBuilt < 1976;
+      const hits100 = deal.roi >= 1.0;
+      const cards = [
+        [preHUD, 'Pre-HUD Home (Pre-1976)', 'No conventional financing — cash or seller finance only', '⚠️', 'var(--red)'],
+        [!preHUD, 'Post-HUD Home (Post-1976)', 'HUD compliant — chattel financing may be available', '✅', 'var(--green)'],
+        [true, 'Land-Lease Park', 'Personal property — titled through HCD, not county recorder', 'ℹ️', 'var(--teal)'],
+        [true, 'Park Allows Pre-1976 Sales', 'Confirm with park — critical for exit strategy', '✅', 'var(--green)'],
+        [hits100, '100% ROI Target Met', 'Deal qualifies by your investment criteria', hits100 ? '✅' : '❌', hits100 ? 'var(--green)' : 'var(--red)'],
+      ];
+      const container = document.getElementById('flag-cards');
+      if (container) {
+        container.innerHTML = cards.map(([_, label, desc, icon, color]) =>
+          `<div class="flag-card"><span>${icon}</span><div><div class="label" style="color:${color}">${label}</div><div class="desc">${desc}</div></div></div>`
+        ).join('');
+      }
+      const rentDesc = document.getElementById('rent-out-desc');
+      const lotRent = num(document.getElementById('lotRentAmt')?.value);
+      if (rentDesc) rentDesc.textContent = `~${fmt(1300)}/mo rent − ${fmt(lotRent)}/mo lot = ${fmt(1300 - lotRent)}/mo net`;
+    }
+
+    function run() {
+      const s = getState();
+      const deal = updateDeal(s);
+      updateSF(s, deal);
+      updateProps(s, deal);
+    }
+
+    inputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', run);
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.getAttribute('data-tab');
+        const panel = document.getElementById('panel-' + tab);
+        if (panel) panel.classList.add('active');
+      });
+    });
+    run();
+  </script>
+</body>
+</html>
