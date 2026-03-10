@@ -490,10 +490,22 @@
             <div id="flag-cards"></div>
             <div class="section-title" style="margin-top:1.5rem">Exit Strategy Guide</div>
             <div class="metrics">
-              <div class="row"><div><strong style="color:var(--green)">Seller Finance</strong></div><div>Best option — maximize profit, open buyer pool</div></div>
-              <div class="row"><div><strong style="color:var(--teal)">Cash Buyer / Investor</strong></div><div>MHVillage, Facebook Marketplace, Craigslist</div></div>
-              <div class="row"><div><strong style="color:var(--muted)">Wholesale / Assign</strong></div><div>Fast exit — $3K–$5K assignment fee, no rehab</div></div>
-              <div class="row"><div><strong style="color:var(--muted)">Rent Out</strong></div><div id="rent-out-desc">—</div></div>
+              <div class="row">
+                <div><strong style="color:var(--green)">Seller Finance</strong></div>
+                <div id="exit-sf">Assistant tip will appear here once numbers are entered.</div>
+              </div>
+              <div class="row">
+                <div><strong style="color:var(--accent)">Cash Buyer / Investor</strong></div>
+                <div id="exit-cash">Assistant will compare cash profit vs. seller finance.</div>
+              </div>
+              <div class="row">
+                <div><strong style="color:var(--muted)">Wholesale / Assign</strong></div>
+                <div id="exit-wholesale">Assistant will flag if a quick assignment is safer.</div>
+              </div>
+              <div class="row">
+                <div><strong style="color:var(--muted)">Rent Out</strong></div>
+                <div id="rent-out-desc">Assistant will estimate rent vs. lot rent spread.</div>
+              </div>
             </div>
           </div>
         </div>
@@ -611,6 +623,14 @@
     function updateProps(s, deal) {
       const preHUD = s.yearBuilt < 1976;
       const hits100 = deal.roi >= 1.0;
+      // Recompute simple SF economics for recommendations
+      const sfLoanAmt = s.sfSalePrice - s.sfDown;
+      const r = s.sfRate / 100 / 12;
+      const n = s.sfTermYears * 12;
+      const sfPayment = (sfLoanAmt > 0 && r > 0 && n > 0) ? sfLoanAmt * r / (1 - Math.pow(1 + r, -n)) : 0;
+      const sfTotalCollected = sfPayment * n + s.sfDown;
+      const sfNetProfit = (deal.totalAllIn != null && deal.totalAllIn > 0) ? sfTotalCollected - deal.totalAllIn : 0;
+
       const cards = [
         [preHUD, 'Pre-HUD Home (Pre-1976)', 'No conventional financing — cash or seller finance only', '⚠️', 'var(--red)'],
         [!preHUD, 'Post-HUD Home (Post-1976)', 'HUD compliant — chattel financing may be available', '✅', 'var(--green)'],
@@ -626,7 +646,60 @@
       }
       const rentDesc = document.getElementById('rent-out-desc');
       const lotRent = num(document.getElementById('lotRentAmt')?.value);
-      if (rentDesc) rentDesc.textContent = `~${fmt(1300)}/mo rent − ${fmt(lotRent)}/mo lot = ${fmt(1300 - lotRent)}/mo net`;
+      if (rentDesc) {
+        const estRent = 1300;
+        const net = estRent - lotRent;
+        rentDesc.textContent = lotRent > 0
+          ? `≈${fmt(estRent)}/mo rent − ${fmt(lotRent)}/mo lot ≈ ${fmt(net)}/mo net before repairs/ops.`
+          : 'Enter lot rent to see an estimated monthly net if you held this as a rental.';
+      }
+
+      // AI-style assistant recommendations (rule-based)
+      const exitSf = document.getElementById('exit-sf');
+      const exitCash = document.getElementById('exit-cash');
+      const exitWholesale = document.getElementById('exit-wholesale');
+
+      const hasDealNumbers = s.arv || s.purchase || s.rehab || s.sfSalePrice || s.sfDown;
+      if (!hasDealNumbers) {
+        if (exitSf) exitSf.textContent = 'Start by entering ARV, purchase, and rehab so I can compare cash vs. seller finance outcomes.';
+        if (exitCash) exitCash.textContent = 'Once numbers are in, I will tell you if a straight cash sale hits your target ROI.';
+        if (exitWholesale) exitWholesale.textContent = 'With basic numbers entered, I will flag when a quick assignment may be safer than taking on the rehab.';
+        return;
+      }
+
+      const cashProfit = deal.profit || 0;
+      const cashRoi = deal.roi || 0;
+      const sfBeatsCash = sfNetProfit > cashProfit + 2000; // simple spread threshold
+
+      if (exitSf) {
+        if (sfBeatsCash && sfNetProfit > 0) {
+          exitSf.textContent = `Seller finance looks strongest: est. profit around ${fmt(sfNetProfit)} over the term, likely higher than a straight cash sale on this deal.`;
+        } else if (sfNetProfit > 0) {
+          exitSf.textContent = `Seller finance adds modest profit (~${fmt(sfNetProfit)}) and steady payments; consider this if you want income more than a quick cash check.`;
+        } else {
+          exitSf.textContent = 'Based on your inputs, seller finance does not add much profit above your all‑in cost. Re‑check sale price, rate, term, and down payment.';
+        }
+      }
+
+      if (exitCash) {
+        if (cashRoi >= 1) {
+          exitCash.textContent = `A cash sale clears your 100% ROI gate with est. profit of ${fmt(cashProfit)} — good option if you want to exit quickly and de‑risk.`;
+        } else if (cashRoi > 0) {
+          exitCash.textContent = `Cash sale is profitable (~${fmt(cashProfit)}) but under your 100% ROI target. Consider lowering all‑in cost or pairing this with seller finance.`;
+        } else {
+          exitCash.textContent = 'At your current ARV and cost inputs, a cash sale loses money. Re‑run your numbers or treat this as a pass/wholesale‑only opportunity.';
+        }
+      }
+
+      if (exitWholesale) {
+        if (cashRoi < 0 || s.rehab === 0) {
+          exitWholesale.textContent = 'Wholesale looks attractive here: no rehab risk and you can target a simple $3k–$5k assignment fee to a local investor.';
+        } else if (!hits100) {
+          exitWholesale.textContent = 'Because you are below the 100% ROI target, consider locking the deal up low and wholesaling to another investor instead of taking on the rehab.';
+        } else {
+          exitWholesale.textContent = 'Wholesale is optional here — numbers support a full flip. Keep it in your back pocket if your crew or capital is tied up.';
+        }
+      }
     }
 
     function run() {
